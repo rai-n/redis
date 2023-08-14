@@ -72,7 +72,7 @@ restore hello ttl_value=0 (never expire) serialized-value [REPLACE (will replace
 * **HSTRLEN hash key value**: Returns length of key's value 
 
 5. Sets
-* Redis sets re unordered collection of strings. You can add, remove and test for existence of members. Supports number of server side commands to compute sets starting from existing sets, so u can do unions, intersections, differences of sets in very short time. The max nubmer of members in a set is 2^32 -1 members per set
+* Redis sets re unordered collection of strings. You can add, remove and test for existence of members. Supports number of server side commands to compute sets starting from existing sets, so u can do unions, intersections, differences of sets in very short time. The max nubmer of members in a set is 2^32 -1 members per seta
 
 * **SADD key member**: Adds a member to a set
 * **SREM key member**: Removes a member from a set
@@ -83,6 +83,35 @@ restore hello ttl_value=0 (never expire) serialized-value [REPLACE (will replace
 
 * Set operations
     1. Difference of set (A minus B)
+    * **SDIFF A B** 
     2. Intersection of set (A n B)
+    * **SINTER A B**
     3. Union of set (A U B)
-    
+    * **SUNION A B**
+* You can also add store at the end like **SDIFFSTORE destination a b** to store the results to a different set
+
+6. Sorted sets
+* Are similar to a mix between a set and a hash. Composed of unique, non-repeating string element which are ordered. Every element in the sorted set is associated with a floating point value called score. Every element is mapped to this score (similar to hash). Sorted sets sort by score and by alphabetical order for members with same score. 
+* **ZADD key NX|XX GT|LT CH INCR score member [score member ...]**: Adds member to sorted set with a float score. You can specify CH to get the amount of members changed in the set and INCR to increment score to a member
+* **ZRANGE key start stop**: Print sorted set members
+* **ZCARD key**: Returns length of sorted set
+* **ZSCORE key member**: Returns score of member within sorted set
+* **ZREM key [members ]**: Removes key from sorted set
+* **ZREVRANGE key start stop**: Prints sorted set members in reverse
+* **ZRANK key start stop**: Returns the index of the set member
+* **ZCOUNT key min max**: Returns count of keys with score in range of min and max
+* **ZPOPMAX key amount**: Removes the top amount of members from a sorted set
+* **ZRANGEBYLEX key min max**: Returns lexicographical ordering of members. E.g. A -> B 
+    * [member,...] - Include character
+    * (member,...) - Exclude character
+* **ZLEXCOUNT key lex**: Returns count of members in set including or excluding members
+* **ZREMRANGEBYSCORE key start end**: Removes members in set which are between the start and end scores
+
+7. Transaction
+* A transaction in Redis consists of a block fo commands using "Multi", "Exec", "Discord", "Watch". All the commands in a transaction are serialized and executed sequentially. A request issued by another client cannot be served in the middle of the execution of a Redis transaction. This guarantees the commands are executed a single isolated operation at a point
+* Either all of the commands are processed or not at all, so Redis transaction is also atomic so if a client passes an invalid command to the server in the context of a transaction then none of the operations are performed
+
+* **MULTI** to start a transaction. You are then add statements like **SET bank_account 1000** and a few statements later you can execute all of the statements using **EXEC**
+* If there are errors before an exec occurs, such as wrong number of arguments, wrong command name etc, Redis will throw an error. if the syntax of the command is fine but the operation is incorrect on the wrong kind of data type, it is considered a developer error and the rest of the transaction will continue
+
+8. Pubsub
