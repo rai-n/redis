@@ -129,5 +129,76 @@ exec             // This executes both commands
 3. Case 3: If client A has an **unwatch** key inside of a transaction and client B changes a value inside the key, the transaction itself will not execute, hence the **unwatch** command itself will not execute
 
 8. Scripting & connection
+Redis allows you to create your own scrips using Lua scripts on the Redis server, enabling you to perform complex operations directly on the server without having to send multiple commands from y our application. This can help reduce latency, decrease network traffic, and simplify application logic. Scripts can use programmatic control structures and use most of the commands with access to the database. Because scripts execute in the server, reading and writing data from the scripts is very efficient. Redis guarantees the script's atomic execution. Script executes where data lives, blocking semantics that ensure script's atomic execution. It also includes simple capabilities which are not in Redis that might be too niche such as HyperLogLog data structure support (used for estimating the number of distinct elements in a multiset). Range queries in sorted sets, clients handling with client command, latency monitoring with latency command, better LRU (least recently used) algorithm to manage cache, massively better list type memory usage. Quicklists are more memory efficient of Redis lists. Lua bit which allows you to perform bitwise operations on numbers. 
+
+For example: 
+ `eval "redis.call('set', KEYS[1], ARGV[1])" 1 name Neer`
+* Eval command evaluates the script using the Lua interpreter. The script calls set command in Redis to set the value of a key. The keys and args tables are used to pass the arguments to the scripts.
+
+1. Example 1: This example shows how to use the EVAL command to execute a simple Lua script in Redis1:
+`EVAL "return 'Hello, scripting!'" 0` 
+
+This script returns the string "Hello, scripting!" when executed. The EVAL command takes two arguments: the first is the Lua script to execute, and the second is the number of keys that the script will access. In this case, we pass 0 as the second argument because our script does not access any keys.
+
+2. Example 2: This example shows how to use the `redis.call` function to execute a Redis command from within a Lua script:
+`eval "redis.call('set', KEYS[1], ARGV[1])" 1 name Neer`
+ 
+This script calls the set command in Redis to set the value of a key. The KEYS and ARGV tables are used to pass arguments to the script. In this case, KEYS[1] is set to "key", and ARGV[1] is set to "Neer". When the script is executed, it will call the set command in Redis with these arguments, setting the value of the key "key" to "Neer".
+
+3. Example 3: This example shows how to use control structures in a Lua script to perform conditional updates on multiple keys:
+```
+EVAL "
+local val = redis.call('get', KEYS[1]);
+if val == ARGV[1]
+then redis.call('set', KEYS[2], ARGV[2])
+end" 
+2 key1 key2 1 2
+```
+This script uses an if statement to check if the value of the key specified by KEYS[1] is equal to the value specified by ARGV[1]. If this condition is true, then the script calls the set command in Redis to set the value of the key specified by KEYS[2] to the value specified by ARGV[2].
+
+Lua scripting: https://www.tutorialspoint.com/lua/index.htm
+
+* Storing scripts, with some control flow 
+
+    1. Using set multi hash set to create a mapping between country and capitals
+    `hmset country_capitals India "New Delhi" USA "Wash DC" Germany Berlin Japan Tokyo`
+    2. Making a country sorted set to do the mapping on
+    `zadd country 1 India 2 Germany 3 Japan`
+    3. EVAL command to execute a Lua script that retrieves the capitals of the countries in the country sorted set in the order they appear in the sorted set. The script first uses the **ZRANGE** command to get the countries from the country sorted set in ascending order of their scores. Then it uses the **HMGET** command to get the capitals of these countries from the **country_capitals** hash map.
+
+    ```eval "
+    local order = redis.call('zrange', KEYS[1], 0, -1);
+    return redis.call('hmget', KEYS[2], unpack(order))" 2 country country_capitals`
+
+    3. Saving as a script
+    ```
+     script load " local order = redis.call('zrange', KEYS[1], 0, -1); return redis.call('hmget', KEYS[2], unpack(order))"
+     > cdc499534bb199d133972ef94776e3b3a16a59a8
+    ```
+    3. Running it 
+    
+    If a script is running, everything else is waiting so ensure that scripts aren't too long, causing bottlenecks. You can kill a script taking too long with KILL (if it is not currently executing a write command, otherwise u need wait until it is completed)
+    
+    If the script is already loaded into Redis's cache, you can use `EVALSHA` command to execute the script and gain some performance increase by not having to send the SHA1 digest to the server and not having to calculate the SHA1 digest of the script. You can check if script exists already using `SCRIPT EXISTS`
+    
+    `evalsha cdc499534bb199d133972ef94776e3b3a16a59a8 2 country country_capitals`
+
+* Connections and security
+- You can use `ping` to verify connection
+- For single node redis db , you can use `select index` to change databases. All databases are stored on the same file. For redis clusters, the databases would be index 0
+- Can use `client` commands to see `client list`, `client name`to identify clients, stop clients with `client kill id`, etc.
+- You can create passwords for clients to login using a configuration for security. You can use `config set requirepass pass`. 
+- To login you can use `auth pass`. Redis doesn't have built in support for usernames.
 
 9. Publish/ subscribe
+* You can create a simple message bus. This allows Redis to act as a broker for multiple clients providing a simple way to post and consume messages and events. Senders (publishers) are not programmed to send their messages to specific receivers (subscribers). The sender doesn't know who they are sending the message to and instead sent it to the channel/ bus who then sends it to the receiver who have subscribed to it. Messages are received only if the client is subscribed to the channel at the time of the message being published.
+
+- To send message, you can use `publish channel_name message`
+- You can subscribe using `subscribe channel_name`
+
+* You can create patterned subscriptions
+
+- You can subscribe using `psubscribe pattern`. If any messages are sent to channels that match the channel name pattern, it is sent to the receiver. E.g. `ch?` could represent a channel "ch" followed by a character like 0-9 or a-z or !£*. 
+- You can use `pubsub` for administration like finding out how many subscribers a channel has. 
+    1. `pubsub numsub`- returns number of subs a channel has. Doesn't count patterned subscription.
+    2. `pubsub numpat`- returns number of patterned subs a channel has 
