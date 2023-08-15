@@ -6,6 +6,10 @@
 2. 
 3. 
 
+## Tasks
+
+![Tasks](task1.png)
+
 ## Syntax
 1. Basic
 * **SET key value**: Sets the value of a key
