@@ -113,5 +113,21 @@ restore hello ttl_value=0 (never expire) serialized-value [REPLACE (will replace
 
 * **MULTI** to start a transaction. You are then add statements like **SET bank_account 1000** and a few statements later you can execute all of the statements using **EXEC**
 * If there are errors before an exec occurs, such as wrong number of arguments, wrong command name etc, Redis will throw an error. if the syntax of the command is fine but the operation is incorrect on the wrong kind of data type, it is considered a developer error and the rest of the transaction will continue
+* Using **discard**  after multi discards the transaction so using **exec** does not commit the transaction
+* **watch** can be used to do monitoring on the key
 
-8. Pubsub
+1. Case 1: If you watch a key and make a change to a key before a transaction, the transaction does't go through. 
+```
+watch bank1
+incrby bank100 
+multi 
+incrby bank50   // this will fail since watch has been done before incrby bank100
+incrby bank49    // this will succeed as it's now unwatched by another process
+exec             // This executes both commands
+```
+2. Case 2: If client A watches a key and client B makes a change to the key, any subsequent transactions that client A makes will not go through. After exec occurs, the keys will be unwatched. To unwatch a key you can use **unwatch** command to unwatch all watched keys
+3. Case 3: If client A has an **unwatch** key inside of a transaction and client B changes a value inside the key, the transaction itself will not execute, hence the **unwatch** command itself will not execute
+
+8. Scripting & connection
+
+9. Publish/ subscribe
