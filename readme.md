@@ -8,7 +8,9 @@
 
 ## Tasks
 
-![Tasks](task1.png)
+![Task 1](task1.png)
+![Task 2](task2.png)
+![Task 3](task3.png)
 
 ## Syntax
 1. Basic
